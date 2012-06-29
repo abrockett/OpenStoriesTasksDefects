@@ -1,0 +1,27 @@
+.app {
+     margin:5px;
+}
+.combobox {
+    margin: 5px;
+}
+.mainHeader {
+    margin: 10px 5px 0px;
+}
+.gridTitle {
+    margin: 25px 17px 5px;
+    font-size:1.125em;
+}
+.grid {
+    margin:5px;
+}
+.columnHeader {
+    font-size:1.125em;
+}
+.parent {
+    font-weight:bold;
+    line-height:120%;
+}
+.child {
+    margin-left:20px;
+    line-height:120%;
+}
