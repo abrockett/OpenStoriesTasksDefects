@@ -1,4 +1,3 @@
-
 Ext.define('CustomApp', {
     extend: 'Rally.app.App',
     componentCls: 'app',
