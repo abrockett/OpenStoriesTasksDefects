@@ -56,7 +56,9 @@ Ext.define('CustomApp', {
 
     _ownerIfKnown: function (artifact) {
         var name = 'unknown';
-        if (artifact._refObjectName && artifact.DisplayName) {
+        if (artifact === null) {
+            name = '-';
+        } else if (artifact._refObjectName && artifact.DisplayName) {
             name = artifact.DisplayName;
         } else if (artifact._refObjectName && artifact.UserName) {
             name = artifact.UserName;
@@ -166,6 +168,7 @@ Ext.define('CustomApp', {
         var me = this;
         this._storyRecords = [];
         var taskList = [];
+        //debugger;
         if (data.length === 0) {
             me._onStoriesInfoLoaded([],0);
         }
@@ -180,12 +183,12 @@ Ext.define('CustomApp', {
                 fetch: ['FormattedID', 'Name', 'State', 'Owner', 'UserName', 'DisplayName'],
                 callback: function(tasks, operation, success) {
                     for (var i = 0; i < tasks.length; i++) {
-                        if (tasks[i].raw.Owner._refObjectName === story.get('Owner')._refObjectName){
+                        if (tasks[i].get('State') !== 'Completed'){
                             taskList.push({
                                 matchedFormattedID: story.get('FormattedID'),
                                 Name: '<div class="child"><a href="' + Rally.nav.Manager.getDetailUrl(tasks[i].raw._ref) + '" target="_top">' + tasks[i].raw.FormattedID + ' ' + tasks[i].raw.Name + '</a></div>',
-                                Status: '<div class="child">' + tasks[i].raw.State + '</div>',
-                                UserName: '<div class="child">' + me._ownerIfKnown(tasks[i].raw.Owner) + '</div>'
+                                Status: '<div>' + tasks[i].raw.State + '</div>',
+                                UserName: '<div>' + me._ownerIfKnown(tasks[i].raw.Owner) + '</div>'
                             });
                         }
                     }
@@ -197,7 +200,7 @@ Ext.define('CustomApp', {
     },
 
     _onStoriesInfoLoaded: function(tasks, dataLength) {
-        var taskID, data;
+        var taskID, data, tempTaskList = [];
         if (this._storyRecords) {
             data = Ext.clone(this._storyRecords);
         } else {
@@ -205,21 +208,26 @@ Ext.define('CustomApp', {
         }
         for (var i = 0; i < tasks.length; i++) {
             taskID = tasks[i].matchedFormattedID;
+            for (var j = i; j < tasks.length; j++) {
+                if (tasks[j].matchedFormattedID === taskID) {
+                    Ext.Array.insert(tempTaskList, j+1, [tasks[j]]);
+                    i++;
+                }
+            }
             for (var r = 0; r < data.length; r++) {
-                //for (var j = r; j < data.length; j++) {
-
-                //}
                 if (data[r].FormattedID === taskID) {
-                    Ext.Array.insert(data, r+1, [tasks[i]]);
+                    Ext.Array.insert(data, r+1, tempTaskList);
                     break;
                 }
             }
+            tempTaskList = [];
+            i--;
         }
         this._onStoriesDataReady(data, dataLength);
     },
 
     _onTasksDataLoaded: function (store, data) {
-        debugger;
+        //debugger;
         var records = [];
         Ext.Array.each(data, function (task) {
             records.push({
@@ -242,7 +250,9 @@ Ext.define('CustomApp', {
     },
 
     _onDefectsInfoLoaded: function(tasks, dataLength) {
-        var taskID, data;
+        //tasks = tasks.reverse();
+        //debugger;
+        var taskID, data, tempTaskList = [];
         if (this._defectRecords) {
             data = Ext.clone(this._defectRecords);
         } else {
@@ -250,18 +260,20 @@ Ext.define('CustomApp', {
         }
         for (var i = 0; i < tasks.length; i++) {
             taskID = tasks[i].matchedFormattedID;
+            for (var j = i; j < tasks.length; j++) {
+                if (tasks[j].matchedFormattedID === taskID) {
+                    Ext.Array.insert(tempTaskList, j+1, [tasks[j]]);
+                    i++;
+                }
+            }
             for (var r = 0; r < data.length; r++) {
                 if (data[r].FormattedID === taskID) {
-                    //for (var j = r; j < data.length; j++) {
-                    //    if (data[j].FormattedID !== taskID) {
-                    //        Ext.Array.insert(data, j+1, [tasks[i]]);
-                    //        break;
-                    //    }
-                    //}
-                    Ext.Array.insert(data, r+1, [tasks[i]]);
+                    Ext.Array.insert(data, r+1, tempTaskList);
                     break;
                 }
             }
+            tempTaskList = [];
+            i--;
         }
         this._onDefectsDataReady(data, dataLength);
     },
@@ -283,12 +295,13 @@ Ext.define('CustomApp', {
                 fetch: ['FormattedID', 'Name', 'State', 'Owner', 'UserName', 'DisplayName'],
                 callback: function(tasks, operation, success) {
                     for (var i = 0; i < tasks.length; i++) {
-                        if (tasks[i].raw.Owner._refObjectName === defect.get('Owner')._refObjectName){
+                        if (tasks[i].get('State') !== 'Completed'){
                             taskList.push({
                                 matchedFormattedID: defect.get('FormattedID'),
                                 Name: '<div class="child"><a href="' + Rally.nav.Manager.getDetailUrl(tasks[i].raw._ref) + '" target="_top">' + tasks[i].raw.FormattedID + ' ' + tasks[i].raw.Name + '</a></div>',
-                                Status: '<div class="child">' + tasks[i].raw.State + '</div>',
-                                UserName: '<div class="child">' + me._ownerIfKnown(tasks[i].raw.Owner) + '</div>'
+                                Status: '<div>' + tasks[i].raw.State + '</div>',
+                                UserName: '<div>' + me._ownerIfKnown(tasks[i].raw.Owner) + '</div>',
+                                FormattedID: tasks[i].get('FormattedID')
                             });
                         }
                     }
@@ -346,7 +359,7 @@ Ext.define('CustomApp', {
     },
 
     _onDefectsDataReady: function (data, dataLength){
-        debugger;
+        //debugger;
         var hide = false;
         if (data.length === 0) {
             this.down('#defectGridTitle').update('No Defects In Iteration');

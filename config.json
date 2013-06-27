@@ -1,8 +1,8 @@
 {
     "name": "OpenStoriesTasksDefects",
     "className": "CustomApp",
-    "server": "https://test7cluster.rallydev.com",
-    "sdk": "x",
+    "server": "https://test1cluster.rallydev.com",
+    "sdk": "2.0rc1",
     "javascript": [
         "App.js"
     ],
