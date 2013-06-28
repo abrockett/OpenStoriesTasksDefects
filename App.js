@@ -12,13 +12,13 @@ Ext.define('CustomApp', {
         componentCls: 'mainHeader'
     }, {
         xtype: 'container',
-        itemId: 'storyComps',
+        itemId: 'storyComps'
     }, {
         xtype: 'container',
-        itemId: 'defectComps',
+        itemId: 'defectComps'
     }, {
         xtype: 'container',
-        itemId: 'taskComps',
+        itemId: 'taskComps'
     }],
 
     launch: function () {
@@ -161,7 +161,8 @@ Ext.define('CustomApp', {
                 Status: '<div class="parent">' + story.get('ScheduleState') + '</div>',
                 UserName: '<div class="parent">' + this._ownerIfKnown(story.get('Owner')) + '</div>'
             });
-            var storyStore = story.getCollection('Tasks').load({
+            //this._getTasks(story, data, 'story');
+            story.getCollection('Tasks').load({
                 fetch: ['FormattedID', 'Name', 'State', 'Owner', 'UserName', 'DisplayName'],
                 callback: function(tasks, operation, success) {
                     for (var i = 0; i < tasks.length; i++) {
@@ -170,7 +171,8 @@ Ext.define('CustomApp', {
                                 matchedFormattedID: story.get('FormattedID'),
                                 Name: '<div class="child"><a href="' + Rally.nav.Manager.getDetailUrl(tasks[i].raw._ref) + '" target="_top">' + tasks[i].raw.FormattedID + ' ' + tasks[i].raw.Name + '</a></div>',
                                 Status: '<div>' + tasks[i].raw.State + '</div>',
-                                UserName: '<div>' + me._ownerIfKnown(tasks[i].raw.Owner) + '</div>'
+                                UserName: '<div>' + me._ownerIfKnown(tasks[i].raw.Owner) + '</div>',
+                                FormattedID: tasks[i].get('FormattedID')
                             });
                         }
                     }
@@ -180,7 +182,37 @@ Ext.define('CustomApp', {
         }, this);
     },
 
+    //_getTasks: function(record, data, type) {
+    //    console.log('task list reset?');
+    //    var me = this, taskList = [];
+    //    record.getCollection('Tasks').load({
+    //        fetch: ['FormattedID', 'Name', 'State', 'Owner', 'UserName', 'DisplayName'],
+    //        callback: function(tasks, operation, success) {
+    //            for (var i = 0; i < tasks.length; i++) {
+    //                if (tasks[i].get('State') !== 'Completed'){
+    //                    taskList.push({
+    //                        matchedFormattedID: record.get('FormattedID'),
+    //                        Name: '<div class="child"><a href="' + Rally.nav.Manager.getDetailUrl(tasks[i].raw._ref) + '" target="_top">' + tasks[i].raw.FormattedID + ' ' + tasks[i].raw.Name + '</a></div>',
+    //                        Status: '<div>' + tasks[i].raw.State + '</div>',
+    //                        UserName: '<div>' + me._ownerIfKnown(tasks[i].raw.Owner) + '</div>',
+    //                        FormattedID: tasks[i].get('FormattedID')
+    //                    });
+    //                    console.log(taskList);
+    //                }
+    //            }
+    //            if (type === 'story') {
+    //                me._onStoriesInfoLoaded(taskList, data.length);
+    //            } else if (type === 'defect') {
+    //                me._onDefectsInfoLoaded(taskList, data.length);
+    //            } else {
+    //                console.log('"POOOOP WTF"');
+    //            }
+    //        }
+    //    });
+    //},
+
     _onStoriesInfoLoaded: function(tasks, dataLength) {
+        //console.log(tasks.length, tasks, dataLength);
         var taskID, data, tempTaskList = [];
         if (this._storyRecords) {
             data = Ext.clone(this._storyRecords);
@@ -260,7 +292,7 @@ Ext.define('CustomApp', {
                 Status: '<div class="parent">' + defect.get('ScheduleState') + '</div>',
                 UserName: '<div class="parent">' + this._ownerIfKnown(defect.get('Owner')) + '</div>'
             });
-            var defectStore = defect.getCollection('Tasks').load({
+            defect.getCollection('Tasks').load({
                 fetch: ['FormattedID', 'Name', 'State', 'Owner', 'UserName', 'DisplayName'],
                 callback: function(tasks, operation, success) {
                     for (var i = 0; i < tasks.length; i++) {
@@ -290,44 +322,15 @@ Ext.define('CustomApp', {
         }
 
         if (!this.storyField) {
-            this.storyField = this.down('#storyComps').add({
-                xtype: 'displayfield',
-                value: '<p style="font-size:13px">' + storyTitle + '</p><br />',
-                componentCls: 'gridTitle'
-            });
+            this.storyField = this._createCustomField('#storyComps', storyTitle);
         } else {
             this.storyField.update(storyTitle);
         }
 
-        var customStore = Ext.create('Rally.data.custom.Store', {
-            data: data,
-            pageSize: data.length
-        });
+        var customStore = this._createCustomStore(data, hide);
 
         if (!this.storyGrid) {
-            this.storyGrid = this.down('#storyComps').add({
-                xtype: 'rallygrid',
-                store: customStore,
-                hidden: hide,
-                sortableColumns: false,
-                showPagingToolbar: false,
-                columnCfgs: [{
-                    text: 'Story',
-                    dataIndex: 'Name',
-                    cls: 'columnHeader',
-                    flex: 4
-                }, {
-                    text: 'Status',
-                    dataIndex: 'Status',
-                    cls: 'columnHeader',
-                    flex: 1
-                }, {
-                    text: 'Owner',
-                    dataIndex: 'UserName',
-                    cls: 'columnHeader',
-                    flex: 1
-                }]
-            });
+            this.storyGrid = this._createCustomGrid(customStore, hide, '#storyComps');
         } else {
             this.storyGrid.reconfigure(customStore);
             if (data.length === 0) {
@@ -346,46 +349,17 @@ Ext.define('CustomApp', {
         } else {
             defectTitle = 'Defects: ' + dataLength;
         }
-
-        var customStore = Ext.create('Rally.data.custom.Store', {
-            data: data,
-            pageSize: data.length
-        });
-
+    
+        var customStore = this._createCustomStore(data, hide);
+    
         if (!this.defectField) {
-            this.defectField = this.down('#defectComps').add({
-                xtype: 'displayfield',
-                value: '<p style="font-size:13px">' + defectTitle + '</p><br />',
-                componentCls: 'gridTitle'
-            });
+            this.defectField = this._createCustomField('#defectComps', defectTitle);
         } else {
             this.defectField.update(defectTitle);
         }
 
         if (!this.defectGrid) {
-            this.defectGrid = this.down('#defectComps').add({
-                xtype: 'rallygrid',
-                store: customStore,
-                hidden: hide,
-                sortableColumns: false,
-                showPagingToolbar: false,
-                columnCfgs: [{
-                    text: 'Defect',
-                    dataIndex: 'Name',
-                    cls: 'columnHeader',
-                    flex: 4
-                }, {
-                    text: 'Status',
-                    dataIndex: 'Status',
-                    cls: 'columnHeader',
-                    flex: 1
-                }, {
-                    text: 'Owner',
-                    dataIndex: 'UserName',
-                    cls: 'columnHeader',
-                    flex: 1
-                }]
-            });
+            this.defectGrid = this._createCustomGrid(customStore, hide, '#defectComps');
         } else {
             this.defectGrid.reconfigure(customStore);
             if (data.length === 0) {
@@ -404,47 +378,17 @@ Ext.define('CustomApp', {
         } else {
             taskTitle = 'Tasks: ' + dataLength;
         }
-
-        var customStore = Ext.create('Rally.data.custom.Store', {
-            hidden: hide,
-            data: data,
-            pageSize: data.length
-        });
-
+    
+        var customStore = this._createCustomStore(data, hide);
+    
         if (!this.taskField) {
-            this.taskField = this.down('#taskComps').add({
-                xtype: 'displayfield',
-                value: '<p style="font-size:13px">' + taskTitle + '</p><br />',
-                componentCls: 'gridTitle'
-            });
+            this.taskField = this._createCustomField('#taskComps', taskTitle);
         } else {
             this.taskField.update(taskTitle);
         }
 
         if (!this.taskGrid) {
-            this.taskGrid = this.down('#taskComps').add({
-                xtype: 'rallygrid',
-                store: customStore,
-                hidden: hide,
-                sortableColumns: false,
-                showPagingToolbar: false,
-                columnCfgs: [{
-                    text: 'Task',
-                    dataIndex: 'Name',
-                    cls: 'columnHeader',
-                    flex: 4
-                }, {
-                    text: 'Status',
-                    dataIndex: 'Status',
-                    cls: 'columnHeader',
-                    flex: 1
-                }, {
-                    text: 'Owner',
-                    dataIndex: 'UserName',
-                    cls: 'columnHeader',
-                    flex: 1
-                }]
-            });
+            this.taskGrid = this._createCustomGrid(customStore, hide, '#taskComps');
         } else {
             this.taskGrid.reconfigure(customStore);
             if (data.length === 0) {
@@ -453,5 +397,50 @@ Ext.define('CustomApp', {
                 this.taskGrid.setVisible(true);
             }
         }
+    },
+
+    _createCustomField: function(container, title) {
+        field = this.down(container).add({
+            xtype: 'displayfield',
+            value: '<p style="font-size:13px">' + title + '</p><br />',
+            componentCls: 'gridTitle'
+        });
+        return field;
+    },
+
+    _createCustomGrid: function(store, hide, container) {
+        grid = this.down(container).add({
+            xtype: 'rallygrid',
+            store: store,
+            hidden: hide,
+            sortableColumns: false,
+            showPagingToolbar: false,
+            columnCfgs: [{
+                text: 'Task',
+                dataIndex: 'Name',
+                cls: 'columnHeader',
+                flex: 4
+            }, {
+                text: 'Status',
+                dataIndex: 'Status',
+                cls: 'columnHeader',
+                flex: 1
+            }, {
+                text: 'Owner',
+                dataIndex: 'UserName',
+                cls: 'columnHeader',
+                flex: 1
+            }]
+        });
+        return grid;
+    },
+
+    _createCustomStore: function(data, hide) {
+        store = Ext.create('Rally.data.custom.Store', {
+            hidden: hide,
+            data: data,
+            pageSize: data.length
+        });
+        return store;
     }
 });
