@@ -2,8 +2,6 @@ Ext.define('CustomApp', {
     extend: 'Rally.app.App',
     componentCls: 'app',
 
-    // Question:  "tasks" grid filters out items with State = Completed, so should stories / Defects show tasks that are completed?  right now they are being shown.
-
     items: [{
         xtype: 'container',
         itemId: 'iterationCombobox',
@@ -14,28 +12,13 @@ Ext.define('CustomApp', {
         componentCls: 'mainHeader'
     }, {
         xtype: 'container',
-        itemId: 'storyGridTitle',
-        componentCls: 'gridTitle'
+        itemId: 'storyComps',
     }, {
         xtype: 'container',
-        itemId: 'storyGrid',
-        componentCls: 'grid'
+        itemId: 'defectComps',
     }, {
         xtype: 'container',
-        itemId: 'defectGridTitle',
-        componentCls: 'gridTitle'
-    }, {
-        xtype: 'container',
-        itemId: 'defectGrid',
-        componentCls: 'grid'
-    }, {
-        xtype: 'container',
-        itemId: 'taskGridTitle',
-        componentCls: 'gridTitle'
-    }, {
-        xtype: 'container',
-        itemId: 'taskGrid',
-        componentCls: 'grid'
+        itemId: 'taskComps',
     }],
 
     launch: function () {
@@ -168,7 +151,6 @@ Ext.define('CustomApp', {
         var me = this;
         this._storyRecords = [];
         var taskList = [];
-        //debugger;
         if (data.length === 0) {
             me._onStoriesInfoLoaded([],0);
         }
@@ -192,7 +174,6 @@ Ext.define('CustomApp', {
                             });
                         }
                     }
-                    //callback is asynchronous so we have to call this function after data comes back!
                     me._onStoriesInfoLoaded(taskList, data.length);
                 }
             });
@@ -227,7 +208,6 @@ Ext.define('CustomApp', {
     },
 
     _onTasksDataLoaded: function (store, data) {
-        //debugger;
         var records = [];
         Ext.Array.each(data, function (task) {
             records.push({
@@ -237,21 +217,10 @@ Ext.define('CustomApp', {
             });
         }, this);
         this._onTasksDataReady(records, data.length);
-        //if (records.length > 0) {
-        //    this._onTasksDataReady(records, data.length);
-        //} else {
-        //    if (this.taskGrid) {
-        //        this.taskGrid.destroy();
-        //    }
-        //}
-        if (data.length === 0) {
-            this.down('#taskGridTitle').update('No Tasks In Iteration');
-        }
+        
     },
 
     _onDefectsInfoLoaded: function(tasks, dataLength) {
-        //tasks = tasks.reverse();
-        //debugger;
         var taskID, data, tempTaskList = [];
         if (this._defectRecords) {
             data = Ext.clone(this._defectRecords);
@@ -312,20 +281,31 @@ Ext.define('CustomApp', {
     },
 
     _onStoriesDataReady: function(data, dataLength) {
-        var hide = false;
+        var hide = false, storyTitle;
         if (data.length === 0) {
-            this.down('#storyGridTitle').update('No Stories In Iteration');
+            storyTitle = 'No Stories In Iteration';
             hide = true;
         } else {
-            this.down('#storyGridTitle').update('Stories: ' + dataLength);
+            storyTitle = 'Stories: ' + dataLength;
         }
+
+        if (!this.storyField) {
+            this.storyField = this.down('#storyComps').add({
+                xtype: 'displayfield',
+                value: '<p style="font-size:13px">' + storyTitle + '</p><br />',
+                componentCls: 'gridTitle'
+            });
+        } else {
+            this.storyField.update(storyTitle);
+        }
+
         var customStore = Ext.create('Rally.data.custom.Store', {
             data: data,
             pageSize: data.length
         });
 
         if (!this.storyGrid) {
-            this.storyGrid = this.down('#storyGrid').add({
+            this.storyGrid = this.down('#storyComps').add({
                 xtype: 'rallygrid',
                 store: customStore,
                 hidden: hide,
@@ -359,21 +339,31 @@ Ext.define('CustomApp', {
     },
 
     _onDefectsDataReady: function (data, dataLength){
-        //debugger;
-        var hide = false;
+        var hide = false, defectTitle;
         if (data.length === 0) {
-            this.down('#defectGridTitle').update('No Defects In Iteration');
+            defectTitle = 'No Defects In Iteration';
             hide = true;
         } else {
-            this.down('#defectGridTitle').update('Defects: ' + dataLength);
+            defectTitle = 'Defects: ' + dataLength;
         }
+
         var customStore = Ext.create('Rally.data.custom.Store', {
             data: data,
             pageSize: data.length
         });
 
+        if (!this.defectField) {
+            this.defectField = this.down('#defectComps').add({
+                xtype: 'displayfield',
+                value: '<p style="font-size:13px">' + defectTitle + '</p><br />',
+                componentCls: 'gridTitle'
+            });
+        } else {
+            this.defectField.update(defectTitle);
+        }
+
         if (!this.defectGrid) {
-            this.defectGrid = this.down('#defectGrid').add({
+            this.defectGrid = this.down('#defectComps').add({
                 xtype: 'rallygrid',
                 store: customStore,
                 hidden: hide,
@@ -407,21 +397,32 @@ Ext.define('CustomApp', {
     },
 
     _onTasksDataReady: function(data, dataLength) {
-        //debugger;
-        var hide = false;
-        if (data.length === 0) {
+        var hide = false, taskTitle;
+        if (dataLength === 0) {
+            taskTitle = 'No Tasks In Iteration';
             hide = true;
+        } else {
+            taskTitle = 'Tasks: ' + dataLength;
         }
+
         var customStore = Ext.create('Rally.data.custom.Store', {
             hidden: hide,
             data: data,
             pageSize: data.length
         });
 
-        this.down('#taskGridTitle').update('Tasks: ' + dataLength);
+        if (!this.taskField) {
+            this.taskField = this.down('#taskComps').add({
+                xtype: 'displayfield',
+                value: '<p style="font-size:13px">' + taskTitle + '</p><br />',
+                componentCls: 'gridTitle'
+            });
+        } else {
+            this.taskField.update(taskTitle);
+        }
 
         if (!this.taskGrid) {
-            this.taskGrid = this.down('#taskGrid').add({
+            this.taskGrid = this.down('#taskComps').add({
                 xtype: 'rallygrid',
                 store: customStore,
                 hidden: hide,
