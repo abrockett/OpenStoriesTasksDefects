@@ -401,5 +401,89 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
             pageSize: data.length
         });
         return store;
+    },
+
+    getOptions: function() {
+        return [
+            {
+                text: 'Print',
+                handler: this._onButtonPressed,
+                scope: this
+            }
+        ];
+    },
+
+    _onButtonPressed: function() {
+        var title = this.getContext().getTimeboxScope().getRecord().get('Name'), 
+            options;
+
+        // code to get the style that we added in the app.css file
+        var css = document.getElementsByTagName('style')[0].innerHTML;
+
+
+        
+        options = "toolbar=1,menubar=1,scrollbars=yes,scrolling=yes,resizable=yes,width=1000,height=500";
+
+        var printWindow;
+        if (Ext.isIE) {
+            printWindow = window.open();
+        } else {
+            printWindow = window.open('', '', options);
+        }
+        
+        var doc = printWindow.document;
+
+
+        var username = this.down('#userNameHeader');
+        var stories = this.down('#storyComps');
+        var defects = this.down('#defectComps');
+        var tasks = this.down('#taskComps');
+
+        doc.write('<html><head>' + '<style>' + css + '</style><title>' + title + '</title>');
+
+
+        doc.write('</head><body class="landscape">');
+        doc.write('<p style="font-family:Arial,Helvetica,sans-serif;margin:5px">Iteration: ' + title + '</p><br />');  
+        doc.write(username.getEl().dom.innerHTML + stories.getEl().dom.innerHTML + 
+            defects.getEl().dom.innerHTML + tasks.getEl().dom.innerHTML);
+        doc.write('</body></html>');
+        doc.close();
+
+        this._injectCSS(printWindow);
+
+        printWindow.print();
+
+    },
+
+    _injectContent: function(html, elementType, attributes, container, printWindow){
+        elementType = elementType || 'div';
+        container = container || printWindow.document.getElementsByTagName('body')[0];
+
+        var element = printWindow.document.createElement(elementType);
+
+        Ext.Object.each(attributes, function(key, value){
+            if (key === 'class') {
+                element.className = value;
+            } else {
+                element.setAttribute(key, value);
+            }
+        });
+
+        if(html){
+            element.innerHTML = html;
+        }
+
+        return container.appendChild(element);
+    },
+
+    _injectCSS: function(printWindow){
+        Ext.each(Ext.query('link'), function(stylesheet){
+                this._injectContent('', 'link', {
+                rel: 'stylesheet',
+                href: stylesheet.href,
+                type: 'text/css'
+            }, printWindow.document.getElementsByTagName('head')[0], printWindow);
+        }, this);
+
     }
 });
