@@ -1,40 +1,48 @@
-Ext.define('CustomApp', {
-    extend: 'Rally.app.App',
+Ext.define('Rally.apps.openstoriestasksdefects.App', {
+    extend: 'Rally.app.TimeboxScopedApp',
     componentCls: 'app',
+    scopeType: 'iteration',
 
-    items: [{
-        xtype: 'container',
-        itemId: 'iterationCombobox',
-        componentCls: 'combobox'
-    }, {
-        xtype: 'container',
-        itemId: 'userNameHeader',
-        componentCls: 'mainHeader'
-    }, {
-        xtype: 'container',
-        itemId: 'storyComps'
-    }, {
-        xtype: 'container',
-        itemId: 'defectComps'
-    }, {
-        xtype: 'container',
-        itemId: 'taskComps'
-    }],
-
-    launch: function () {
-        this.down('#iterationCombobox').add({
-            xtype: 'rallyiterationcombobox',
-            itemId: 'iterationComboBox',
-            fieldLabel: 'Select Iteration: ',
-            width: 310,
-            labelWidth: 100,
-            labelStyle: 'font-weight:bold;',
-            listeners: {
-                change: this._query,
-                ready: this._query,
-                scope: this
-            }
+    addContent: function() {
+        this.add(
+{
+            xtype: 'container',
+            itemId: 'userNameHeader',
+            componentCls: 'mainHeader'
+        }, {
+            xtype: 'container',
+            itemId: 'storyComps',
+            items: [{
+                xtype: 'displayfield',
+                itemId: 'story-title',
+                value: '<p style="font-size:13px">No Stories in Iteration</p><br />',
+                componentCls: 'gridTitle'
+            }]
+        }, {
+            xtype: 'container',
+            itemId: 'defectComps',
+            items: [{
+                xtype: 'displayfield',
+                itemId: 'defect-title',
+                value: '<p style="font-size:13px">No Defects in Iteration</p><br />',
+                componentCls: 'gridTitle'
+            }]
+        }, {
+            xtype: 'container',
+            itemId: 'taskComps',
+            items: [{
+                xtype: 'displayfield',
+                itemId: 'task-title',
+                value: '<p style="font-size:13px">No Tasks in Iteration</p><br />',
+                componentCls: 'gridTitle'
+            }]
         });
+
+        this._query();
+    },
+
+    onScopeChange: function() {
+        this._query();
     },
 
     _ownerIfKnown: function (artifact) {
@@ -61,23 +69,22 @@ Ext.define('CustomApp', {
             model: 'UserStory',
             autoLoad: true,
             fetch: ['ObjectID', 'FormattedID', 'Name', 'ScheduleState', 'State', 'Owner', 'UserName', 'DisplayName', 'Tasks', 'Defects', 'TestCases', 'LastVerdict'],
-            filters: [{
-                property: 'Iteration.Name',
-                operator: '=',
-                value: this.down('#iterationComboBox').getRawValue()
-            }, {
-                property: 'Owner.UserName',
-                operator: '=',
-                value: username
-            }, {
-                property: 'ScheduleState',
-                operator: '!=',
-                value: 'Completed'
-            }, {
-                property: 'ScheduleState',
-                operator: '!=',
-                value: 'Accepted'
-            }],
+            filters: [
+                this.getContext().getTimeboxScope().getQueryFilter(),
+                {
+                    property: 'Owner.UserName',
+                    operator: '=',
+                    value: username
+                }, {
+                    property: 'ScheduleState',
+                    operator: '!=',
+                    value: 'Completed'
+                }, {
+                    property: 'ScheduleState',
+                    operator: '!=',
+                    value: 'Accepted'
+                }
+            ],
             sorters: [{
                 property: 'FormattedID',
                 direction: 'ASC'
@@ -92,19 +99,18 @@ Ext.define('CustomApp', {
             model: 'Task',
             autoLoad: true,
             fetch: ['ObjectID', 'FormattedID', 'Name', 'Owner', 'UserName', 'DisplayName', 'State'],
-            filters: [{
-                property: 'Iteration.Name',
-                operator: '=',
-                value: this.down('#iterationComboBox').getRawValue()
-            }, {
-                property: 'Owner.UserName',
-                operator: '=',
-                value: username
-            }, {
-                property: 'State',
-                operator: '!=',
-                value: 'Completed'
-            }],
+            filters: [
+                this.getContext().getTimeboxScope().getQueryFilter(),
+                {
+                    property: 'Owner.UserName',
+                    operator: '=',
+                    value: username
+                }, {
+                    property: 'State',
+                    operator: '!=',
+                    value: 'Completed'
+                }
+            ],
             sorters: [{
                 property: 'FormattedID',
                 direction: 'ASC'
@@ -119,23 +125,22 @@ Ext.define('CustomApp', {
             model: 'Defect',
             autoLoad: true,
             fetch: ['ObjectID', 'FormattedID', 'Name', 'Owner', 'UserName', 'DisplayName', 'ScheduleState', 'Tasks', 'State'],
-            filters: [{
-                property: 'Iteration.Name',
-                operator: '=',
-                value: this.down('#iterationComboBox').getRawValue()
-            }, {
-                property: 'Owner.UserName',
-                operator: '=',
-                value: username
-            }, {
-                property: 'ScheduleState',
-                operator: '!=',
-                value: 'Completed'
-            }, {
-                property: 'ScheduleState',
-                operator: '!=',
-                value: 'Accepted'
-            }],
+            filters: [
+                this.getContext().getTimeboxScope().getQueryFilter(),
+                {
+                    property: 'Owner.UserName',
+                    operator: '=',
+                    value: username
+                }, {
+                    property: 'ScheduleState',
+                    operator: '!=',
+                    value: 'Completed'
+                }, {
+                    property: 'ScheduleState',
+                    operator: '!=',
+                    value: 'Accepted'
+                }
+            ],
             sorters: [{
                 property: 'FormattedID',
                 direction: 'ASC'
@@ -148,117 +153,67 @@ Ext.define('CustomApp', {
     },
 
     _onStoriesDataLoaded: function (store, data) {
-        var me = this;
         this._storyRecords = [];
-        var taskList = [];
+        var taskList = [], numberTimesLoaded = data.length;
         if (data.length === 0) {
-            me._onStoriesInfoLoaded([],0);
+            this._onStoriesInfoLoaded([],0);
         }
-        Ext.Array.each(data, function (story) {
+        Ext.Array.each(data, function (story, index) {
             this._storyRecords.push({
                 FormattedID: story.get('FormattedID'),
                 Name: '<div class="parent"><a href="' + Rally.nav.Manager.getDetailUrl(story.get('_ref')) + '" target="_top">' + story.get('FormattedID') + ' ' + story.get('Name') + '</a></div>',
                 Status: '<div class="parent">' + story.get('ScheduleState') + '</div>',
                 UserName: '<div class="parent">' + this._ownerIfKnown(story.get('Owner')) + '</div>'
             });
-            //this._getTasks(story, data, 'story');
             story.getCollection('Tasks').load({
                 fetch: ['FormattedID', 'Name', 'State', 'Owner', 'UserName', 'DisplayName'],
+                scope: this,
                 callback: function(tasks, operation, success) {
-                    for (var i = 0; i < tasks.length; i++) {
-                        if (tasks[i].get('State') !== 'Completed'){
-                            taskList.push({
-                                matchedFormattedID: story.get('FormattedID'),
-                                Name: '<div class="child"><a href="' + Rally.nav.Manager.getDetailUrl(tasks[i].raw._ref) + '" target="_top">' + tasks[i].raw.FormattedID + ' ' + tasks[i].raw.Name + '</a></div>',
-                                Status: '<div>' + tasks[i].raw.State + '</div>',
-                                UserName: '<div>' + me._ownerIfKnown(tasks[i].raw.Owner) + '</div>',
-                                FormattedID: tasks[i].get('FormattedID')
-                            });
-                        }
+                    taskList = taskList.concat(this._getTasks(tasks, story));
+                    if ((index+1) === numberTimesLoaded) {
+                        this._onStoriesInfoLoaded(taskList, data.length);
                     }
-                    me._onStoriesInfoLoaded(taskList, data.length);
                 }
             });
         }, this);
     },
 
-    //_getTasks: function(record, data, type) {
-    //    console.log('task list reset?');
-    //    var me = this, taskList = [];
-    //    record.getCollection('Tasks').load({
-    //        fetch: ['FormattedID', 'Name', 'State', 'Owner', 'UserName', 'DisplayName'],
-    //        callback: function(tasks, operation, success) {
-    //            for (var i = 0; i < tasks.length; i++) {
-    //                if (tasks[i].get('State') !== 'Completed'){
-    //                    taskList.push({
-    //                        matchedFormattedID: record.get('FormattedID'),
-    //                        Name: '<div class="child"><a href="' + Rally.nav.Manager.getDetailUrl(tasks[i].raw._ref) + '" target="_top">' + tasks[i].raw.FormattedID + ' ' + tasks[i].raw.Name + '</a></div>',
-    //                        Status: '<div>' + tasks[i].raw.State + '</div>',
-    //                        UserName: '<div>' + me._ownerIfKnown(tasks[i].raw.Owner) + '</div>',
-    //                        FormattedID: tasks[i].get('FormattedID')
-    //                    });
-    //                    console.log(taskList);
-    //                }
-    //            }
-    //            if (type === 'story') {
-    //                me._onStoriesInfoLoaded(taskList, data.length);
-    //            } else if (type === 'defect') {
-    //                me._onDefectsInfoLoaded(taskList, data.length);
-    //            } else {
-    //                console.log('"POOOOP WTF"');
-    //            }
-    //        }
-    //    });
-    //},
-
     _onStoriesInfoLoaded: function(tasks, dataLength) {
-        //console.log(tasks.length, tasks, dataLength);
-        var taskID, data, tempTaskList = [];
+        var data = [];
         if (this._storyRecords) {
             data = Ext.clone(this._storyRecords);
-        } else {
-            data = [];
         }
-        for (var i = 0; i < tasks.length; i++) {
-            taskID = tasks[i].matchedFormattedID;
-            for (var j = i; j < tasks.length; j++) {
-                if (tasks[j].matchedFormattedID === taskID) {
-                    Ext.Array.insert(tempTaskList, j+1, [tasks[j]]);
-                    i++;
-                }
-            }
-            for (var r = 0; r < data.length; r++) {
-                if (data[r].FormattedID === taskID) {
-                    Ext.Array.insert(data, r+1, tempTaskList);
-                    break;
-                }
-            }
-            tempTaskList = [];
-            i--;
-        }
-        this._onStoriesDataReady(data, dataLength);
+
+        var formattedData = this._formatTasks(tasks, data);
+
+        this._onStoriesDataReady(formattedData, dataLength);
     },
 
     _onTasksDataLoaded: function (store, data) {
-        var records = [];
-        Ext.Array.each(data, function (task) {
-            records.push({
+        var records = Ext.Array.map(data, function (task) {
+            return {
                 Name: '<div class="task"><a href="' + Rally.nav.Manager.getDetailUrl(task.get('_ref')) + '" target="_top">' + task.get('FormattedID') + ' ' + task.get('Name') + '</a></div>',
                 Status: '<div class="task">' + task.get('State') + '</div>',
                 UserName: '<div class="task">' + this._ownerIfKnown(task.get('Owner')) + '</div>'
-            });
+            };
         }, this);
         this._onTasksDataReady(records, data.length);
         
     },
 
     _onDefectsInfoLoaded: function(tasks, dataLength) {
-        var taskID, data, tempTaskList = [];
+        var data = [];
         if (this._defectRecords) {
             data = Ext.clone(this._defectRecords);
-        } else {
-            data = [];
         }
+
+        var formattedData = this._formatTasks(tasks, data);
+
+        this._onDefectsDataReady(formattedData, dataLength);
+    },
+
+    _formatTasks: function(tasks, data) {
+        var taskID, tempTaskList = [];
         for (var i = 0; i < tasks.length; i++) {
             taskID = tasks[i].matchedFormattedID;
             for (var j = i; j < tasks.length; j++) {
@@ -276,16 +231,18 @@ Ext.define('CustomApp', {
             tempTaskList = [];
             i--;
         }
-        this._onDefectsDataReady(data, dataLength);
+
+        return data;
     },
 
     _onDefectsDataLoaded: function (store, data) {
-        var me = this, taskList = [];
-        this._defectRecords = [];
+        var taskList = [];
+        this._defectRecords = [], numberTimesLoaded = data.length;
         if (data.length === 0) {
-            me._onDefectsInfoLoaded([],0);
+            this._onDefectsInfoLoaded([],0);
         }
-        Ext.Array.each(data, function (defect) {
+
+        Ext.Array.each(data, function (defect, index) {
             this._defectRecords.push({
                 FormattedID: defect.get('FormattedID'),
                 Name: '<div class="parent"><a href="' + Rally.nav.Manager.getDetailUrl(defect.get('_ref')) + '" target="_top">' + defect.get('FormattedID') + ' ' + defect.get('Name') + '</a></div>',
@@ -294,22 +251,32 @@ Ext.define('CustomApp', {
             });
             defect.getCollection('Tasks').load({
                 fetch: ['FormattedID', 'Name', 'State', 'Owner', 'UserName', 'DisplayName'],
+                scope: this,
                 callback: function(tasks, operation, success) {
-                    for (var i = 0; i < tasks.length; i++) {
-                        if (tasks[i].get('State') !== 'Completed'){
-                            taskList.push({
-                                matchedFormattedID: defect.get('FormattedID'),
-                                Name: '<div class="child"><a href="' + Rally.nav.Manager.getDetailUrl(tasks[i].raw._ref) + '" target="_top">' + tasks[i].raw.FormattedID + ' ' + tasks[i].raw.Name + '</a></div>',
-                                Status: '<div>' + tasks[i].raw.State + '</div>',
-                                UserName: '<div>' + me._ownerIfKnown(tasks[i].raw.Owner) + '</div>',
-                                FormattedID: tasks[i].get('FormattedID')
-                            });
-                        }
+                    taskList = taskList.concat(this._getTasks(tasks, defect));
+                    if ((index+1) === numberTimesLoaded) {
+                        this._onDefectsInfoLoaded(taskList, data.length);
                     }
-                    me._onDefectsInfoLoaded(taskList, data.length);
                 }
             });
         }, this);
+    },
+
+    _getTasks: function(tasks, defect) {
+        var taskList = [];
+        for (var i = 0; i < tasks.length; i++) {
+            if (tasks[i].get('State') !== 'Completed'){
+                taskList.push({
+                    matchedFormattedID: defect.get('FormattedID'),
+                    Name: '<div class="child"><a href="' + Rally.nav.Manager.getDetailUrl(tasks[i].raw._ref) + '" target="_top">' + tasks[i].raw.FormattedID + ' ' + tasks[i].raw.Name + '</a></div>',
+                    Status: '<div>' + tasks[i].raw.State + '</div>',
+                    UserName: '<div>' + this._ownerIfKnown(tasks[i].raw.Owner) + '</div>',
+                    FormattedID: tasks[i].get('FormattedID')
+                });
+            }
+        }
+
+        return taskList;
     },
 
     _onStoriesDataReady: function(data, dataLength) {
@@ -321,11 +288,7 @@ Ext.define('CustomApp', {
             storyTitle = 'Stories: ' + dataLength;
         }
 
-        if (!this.storyField) {
-            this.storyField = this._createCustomField('#storyComps', storyTitle);
-        } else {
-            this.storyField.update(storyTitle);
-        }
+        this.down('#story-title').update(storyTitle);
 
         var customStore = this._createCustomStore(data, hide);
 
@@ -349,14 +312,11 @@ Ext.define('CustomApp', {
         } else {
             defectTitle = 'Defects: ' + dataLength;
         }
+
+        this.down('#defect-title').update(defectTitle);
     
         var customStore = this._createCustomStore(data, hide);
-    
-        if (!this.defectField) {
-            this.defectField = this._createCustomField('#defectComps', defectTitle);
-        } else {
-            this.defectField.update(defectTitle);
-        }
+
 
         if (!this.defectGrid) {
             this.defectGrid = this._createCustomGrid(customStore, hide, '#defectComps');
@@ -378,14 +338,11 @@ Ext.define('CustomApp', {
         } else {
             taskTitle = 'Tasks: ' + dataLength;
         }
+
+        this.down('#task-title').update(taskTitle);
     
         var customStore = this._createCustomStore(data, hide);
-    
-        if (!this.taskField) {
-            this.taskField = this._createCustomField('#taskComps', taskTitle);
-        } else {
-            this.taskField.update(taskTitle);
-        }
+
 
         if (!this.taskGrid) {
             this.taskGrid = this._createCustomGrid(customStore, hide, '#taskComps');
@@ -414,7 +371,7 @@ Ext.define('CustomApp', {
             store: store,
             hidden: hide,
             sortableColumns: false,
-            showPagingToolbar: false,
+            //showPagingToolbar: false,
             columnCfgs: [{
                 text: 'Task',
                 dataIndex: 'Name',
