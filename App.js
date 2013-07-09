@@ -3,9 +3,14 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
     componentCls: 'app',
     scopeType: 'iteration',
 
+    comboboxConfig: {
+        fieldLabel: 'Select Iteration:',
+        labelWidth: 100,
+        width: 300
+    },
+
     addContent: function() {
-        this.add(
-{
+        this.add({
             xtype: 'container',
             itemId: 'userNameHeader',
             componentCls: 'mainHeader'
@@ -60,7 +65,6 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
     },
 
     _query: function () {
-
         var username = this.getContext().getUser().UserName;
 
         this.down('#userNameHeader').update('<h3>Open Items for ' + username + ':</h3>');
@@ -201,17 +205,6 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
         
     },
 
-    _onDefectsInfoLoaded: function(tasks, dataLength) {
-        var data = [];
-        if (this._defectRecords) {
-            data = Ext.clone(this._defectRecords);
-        }
-
-        var formattedData = this._formatTasks(tasks, data);
-
-        this._onDefectsDataReady(formattedData, dataLength);
-    },
-
     _formatTasks: function(tasks, data) {
         var taskID, tempTaskList = [];
         for (var i = 0; i < tasks.length; i++) {
@@ -233,6 +226,17 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
         }
 
         return data;
+    },
+
+    _onDefectsInfoLoaded: function(tasks, dataLength) {
+        var data = [];
+        if (this._defectRecords) {
+            data = Ext.clone(this._defectRecords);
+        }
+
+        var formattedData = this._formatTasks(tasks, data);
+
+        this._onDefectsDataReady(formattedData, dataLength);
     },
 
     _onDefectsDataLoaded: function (store, data) {
@@ -343,7 +347,6 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
     
         var customStore = this._createCustomStore(data, hide);
 
-
         if (!this.taskGrid) {
             this.taskGrid = this._createCustomGrid(customStore, hide, '#taskComps');
         } else {
@@ -371,7 +374,6 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
             store: store,
             hidden: hide,
             sortableColumns: false,
-            //showPagingToolbar: false,
             columnCfgs: [{
                 text: 'Task',
                 dataIndex: 'Name',
