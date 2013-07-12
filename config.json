@@ -1,7 +1,7 @@
 {
     "name": "OpenStoriesTasksDefects",
     "className": "Rally.apps.openstoriestasksdefects.App",
-    "server": "https://test15cluster.rallydev.com",
+    "server": "https://test7cluster.rallydev.com",
     "sdk": "2.0rc1",
     "javascript": [
         "App.js"

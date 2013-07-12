@@ -13,32 +13,41 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
         this.add({
             xtype: 'container',
             itemId: 'userNameHeader',
-            componentCls: 'mainHeader'
+            componentCls: 'mainHeader',
+            items: [{
+                xtype: 'label',
+                itemId: 'user-label',
+                text: 'Open Items for unknown',
+                componentCls: 'user-header'
+            }]
         }, {
             xtype: 'container',
-            itemId: 'storyComps',
+            itemId: 'storyComponents',
+            componentCls: 'components',
             items: [{
-                xtype: 'displayfield',
+                xtype: 'label',
                 itemId: 'story-title',
-                value: '<p style="font-size:13px">No Stories in Iteration</p><br />',
+                text: 'No Stories in Iteration',
                 componentCls: 'gridTitle'
             }]
         }, {
             xtype: 'container',
-            itemId: 'defectComps',
+            itemId: 'defectComponents',
+            componentCls: 'components',
             items: [{
-                xtype: 'displayfield',
+                xtype: 'label',
                 itemId: 'defect-title',
-                value: '<p style="font-size:13px">No Defects in Iteration</p><br />',
+                value: 'No Defects in Iteration',
                 componentCls: 'gridTitle'
             }]
         }, {
             xtype: 'container',
-            itemId: 'taskComps',
+            itemId: 'taskComponents',
+            componentCls: 'components',
             items: [{
-                xtype: 'displayfield',
+                xtype: 'label',
                 itemId: 'task-title',
-                value: '<p style="font-size:13px">No Tasks in Iteration</p><br />',
+                text: 'No Tasks in Iteration',
                 componentCls: 'gridTitle'
             }]
         });
@@ -50,24 +59,11 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
         this._query();
     },
 
-    _ownerIfKnown: function (artifact) {
-        var name = 'unknown';
-        if (artifact === null) {
-            name = '-';
-        } else if (artifact._refObjectName && artifact.DisplayName) {
-            name = artifact.DisplayName;
-        } else if (artifact._refObjectName && artifact.UserName) {
-            name = artifact.UserName;
-        } else if (artifact._refObjectName) {
-            name = artifact._refObjectName;
-        }
-        return name;
-    },
-
+    // create wsapi data stores for userstories, defects, tasks
     _query: function () {
-        var username = this.getContext().getUser().UserName;
+        var username = this.getContext().getUser();
 
-        this.down('#userNameHeader').update('<h3>Open Items for ' + username + ':</h3>');
+        this.down('#user-label').update('<h3>Open Items for ' + username.UserName + ':</h3>');
 
         Ext.create('Rally.data.WsapiDataStore', {
             model: 'UserStory',
@@ -76,42 +72,12 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
             filters: [
                 this.getContext().getTimeboxScope().getQueryFilter(),
                 {
-                    property: 'Owner.UserName',
+                    property: 'Owner',
                     operator: '=',
-                    value: username
+                    value: username.getRef()
                 }, {
                     property: 'ScheduleState',
-                    operator: '!=',
-                    value: 'Completed'
-                }, {
-                    property: 'ScheduleState',
-                    operator: '!=',
-                    value: 'Accepted'
-                }
-            ],
-            sorters: [{
-                property: 'FormattedID',
-                direction: 'ASC'
-            }],
-            listeners: {
-                load: this._onStoriesDataLoaded,
-                scope: this
-            }
-        });
-
-        Ext.create('Rally.data.WsapiDataStore', {
-            model: 'Task',
-            autoLoad: true,
-            fetch: ['ObjectID', 'FormattedID', 'Name', 'Owner', 'UserName', 'DisplayName', 'State'],
-            filters: [
-                this.getContext().getTimeboxScope().getQueryFilter(),
-                {
-                    property: 'Owner.UserName',
-                    operator: '=',
-                    value: username
-                }, {
-                    property: 'State',
-                    operator: '!=',
+                    operator: '<',
                     value: 'Completed'
                 }
             ],
@@ -120,7 +86,7 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
                 direction: 'ASC'
             }],
             listeners: {
-                load: this._onTasksDataLoaded,
+                load: this._onStoriesStoreLoaded,
                 scope: this
             }
         });
@@ -132,17 +98,13 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
             filters: [
                 this.getContext().getTimeboxScope().getQueryFilter(),
                 {
-                    property: 'Owner.UserName',
+                    property: 'Owner',
                     operator: '=',
-                    value: username
+                    value: username.getRef()
                 }, {
                     property: 'ScheduleState',
-                    operator: '!=',
+                    operator: '<',
                     value: 'Completed'
-                }, {
-                    property: 'ScheduleState',
-                    operator: '!=',
-                    value: 'Accepted'
                 }
             ],
             sorters: [{
@@ -150,17 +112,46 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
                 direction: 'ASC'
             }],
             listeners: {
-                load: this._onDefectsDataLoaded,
+                load: this._onDefectsStoreLoaded,
+                scope: this
+            }
+        });
+
+        Ext.create('Rally.data.WsapiDataStore', {
+            model: 'Task',
+            autoLoad: true,
+            fetch: ['ObjectID', 'FormattedID', 'Name', 'Owner', 'UserName', 'DisplayName', 'State'],
+            filters: [
+                this.getContext().getTimeboxScope().getQueryFilter(),
+                {
+                    property: 'Owner',
+                    operator: '=',
+                    value: username.getRef()
+                }, {
+                    property: 'State',
+                    operator: '!=',
+                    value: 'Completed'
+                }
+            ],
+            sorters: [{
+                property: 'FormattedID',
+                direction: 'ASC'
+            }],
+            listeners: {
+                load: this._onTasksStoreLoaded,
                 scope: this
             }
         });
     },
 
-    _onStoriesDataLoaded: function (store, data) {
+    // creaty custom story records and get collection of tasks for each story
+    _onStoriesStoreLoaded: function (store, data) {
         this._storyRecords = [];
-        var taskList = [], numberTimesLoaded = data.length;
+        var taskList = [];
+        var numberTimesLoaded = data.length;
+        var counter = 0;
         if (data.length === 0) {
-            this._onStoriesInfoLoaded([],0);
+            this._onStoriesDataLoaded([],0);
         }
         Ext.Array.each(data, function (story, index) {
             this._storyRecords.push({
@@ -173,39 +164,83 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
                 fetch: ['FormattedID', 'Name', 'State', 'Owner', 'UserName', 'DisplayName'],
                 scope: this,
                 callback: function(tasks, operation, success) {
+                    counter++;
                     taskList = taskList.concat(this._getTasks(tasks, story));
-                    if ((index+1) === numberTimesLoaded) {
-                        this._onStoriesInfoLoaded(taskList, data.length);
+                    if (counter === numberTimesLoaded) {
+                        this._onStoriesDataLoaded(taskList, data.length);
                     }
                 }
             });
         }, this);
     },
 
-    _onStoriesInfoLoaded: function(tasks, dataLength) {
-        var data = [];
-        if (this._storyRecords) {
-            data = Ext.clone(this._storyRecords);
+    // creaty custom defect records and get collection of tasks for each defect
+    _onDefectsStoreLoaded: function (store, data) {
+        this._defectRecords = [];
+        var taskList = [];
+        var numberTimesLoaded = data.length;
+        var counter = 0;
+        if (data.length === 0) {
+            this._onDefectsDataLoaded([],0);
         }
 
-        var formattedData = this._formatTasks(tasks, data);
-
-        this._onStoriesDataReady(formattedData, dataLength);
-    },
-
-    _onTasksDataLoaded: function (store, data) {
-        var records = Ext.Array.map(data, function (task) {
-            return {
-                Name: '<div class="task"><a href="' + Rally.nav.Manager.getDetailUrl(task.get('_ref')) + '" target="_top">' + task.get('FormattedID') + ' ' + task.get('Name') + '</a></div>',
-                Status: '<div class="task">' + task.get('State') + '</div>',
-                UserName: '<div class="task">' + this._ownerIfKnown(task.get('Owner')) + '</div>'
-            };
+        Ext.Array.each(data, function (defect, index) {
+            this._defectRecords.push({
+                FormattedID: defect.get('FormattedID'),
+                Name: '<div class="parent"><a href="' + Rally.nav.Manager.getDetailUrl(defect.get('_ref')) + 
+                    '" target="_top">' + defect.get('FormattedID') + ' ' + defect.get('Name') + '</a></div>',
+                Status: '<div class="parent">' + defect.get('ScheduleState') + '</div>',
+                UserName: '<div class="parent">' + this._ownerIfKnown(defect.get('Owner')) + '</div>'
+            });
+            defect.getCollection('Tasks').load({
+                fetch: ['FormattedID', 'Name', 'State', 'Owner', 'UserName', 'DisplayName'],
+                scope: this,
+                callback: function(tasks, operation, success) {
+                    counter++;
+                    taskList = taskList.concat(this._getTasks(tasks, defect));
+                    if (counter === numberTimesLoaded) {
+                        this._onDefectsDataLoaded(taskList, data.length);
+                    }
+                }
+            });
         }, this);
-        this._onTasksDataReady(records, data.length);
-        
     },
 
-    _formatTasks: function(tasks, data) {
+    // gets tasks in nice formatted array.
+    _getTasks: function(tasks, element) {
+        var taskList = [];
+        for (var i = 0; i < tasks.length; i++) {
+            if (tasks[i].get('State') !== 'Completed'){
+                taskList.push({
+                    matchedFormattedID: element.get('FormattedID'),
+                    Name: '<div class="child"><a href="' + Rally.nav.Manager.getDetailUrl(tasks[i].raw._ref) + 
+                        '" target="_top">' + tasks[i].raw.FormattedID + ' ' + tasks[i].raw.Name + '</a></div>',
+                    Status: tasks[i].raw.State,
+                    UserName: this._ownerIfKnown(tasks[i].raw.Owner),
+                    FormattedID: tasks[i].get('FormattedID')
+                });
+            }
+        }
+
+        return taskList;
+    },
+
+    // format data by putting tasks into stories array
+    _onStoriesDataLoaded: function(tasks, dataLength) {
+        var formattedData = this._formatData(tasks, this._storyRecords);
+
+        this._buildStories(formattedData, dataLength);
+    },
+
+    // format data by putting tasks into defects array
+    _onDefectsDataLoaded: function(tasks, dataLength) {
+        var formattedData = this._formatData(tasks, this._defectRecords);
+
+        this._buildDefects(formattedData, dataLength);
+    },
+
+    // match tasks with defect / story and insert them into correct spot
+    _formatData: function(tasks, data) {
         var taskID, tempTaskList = [];
         for (var i = 0; i < tasks.length; i++) {
             taskID = tasks[i].matchedFormattedID;
@@ -228,62 +263,7 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
         return data;
     },
 
-    _onDefectsInfoLoaded: function(tasks, dataLength) {
-        var data = [];
-        if (this._defectRecords) {
-            data = Ext.clone(this._defectRecords);
-        }
-
-        var formattedData = this._formatTasks(tasks, data);
-
-        this._onDefectsDataReady(formattedData, dataLength);
-    },
-
-    _onDefectsDataLoaded: function (store, data) {
-        var taskList = [];
-        this._defectRecords = [], numberTimesLoaded = data.length;
-        if (data.length === 0) {
-            this._onDefectsInfoLoaded([],0);
-        }
-
-        Ext.Array.each(data, function (defect, index) {
-            this._defectRecords.push({
-                FormattedID: defect.get('FormattedID'),
-                Name: '<div class="parent"><a href="' + Rally.nav.Manager.getDetailUrl(defect.get('_ref')) + '" target="_top">' + defect.get('FormattedID') + ' ' + defect.get('Name') + '</a></div>',
-                Status: '<div class="parent">' + defect.get('ScheduleState') + '</div>',
-                UserName: '<div class="parent">' + this._ownerIfKnown(defect.get('Owner')) + '</div>'
-            });
-            defect.getCollection('Tasks').load({
-                fetch: ['FormattedID', 'Name', 'State', 'Owner', 'UserName', 'DisplayName'],
-                scope: this,
-                callback: function(tasks, operation, success) {
-                    taskList = taskList.concat(this._getTasks(tasks, defect));
-                    if ((index+1) === numberTimesLoaded) {
-                        this._onDefectsInfoLoaded(taskList, data.length);
-                    }
-                }
-            });
-        }, this);
-    },
-
-    _getTasks: function(tasks, defect) {
-        var taskList = [];
-        for (var i = 0; i < tasks.length; i++) {
-            if (tasks[i].get('State') !== 'Completed'){
-                taskList.push({
-                    matchedFormattedID: defect.get('FormattedID'),
-                    Name: '<div class="child"><a href="' + Rally.nav.Manager.getDetailUrl(tasks[i].raw._ref) + '" target="_top">' + tasks[i].raw.FormattedID + ' ' + tasks[i].raw.Name + '</a></div>',
-                    Status: '<div>' + tasks[i].raw.State + '</div>',
-                    UserName: '<div>' + this._ownerIfKnown(tasks[i].raw.Owner) + '</div>',
-                    FormattedID: tasks[i].get('FormattedID')
-                });
-            }
-        }
-
-        return taskList;
-    },
-
-    _onStoriesDataReady: function(data, dataLength) {
+    _buildStories: function(data, dataLength) {
         var hide = false, storyTitle;
         if (data.length === 0) {
             storyTitle = 'No Stories In Iteration';
@@ -297,7 +277,7 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
         var customStore = this._createCustomStore(data, hide);
 
         if (!this.storyGrid) {
-            this.storyGrid = this._createCustomGrid(customStore, hide, '#storyComps');
+            this.storyGrid = this._createCustomGrid(customStore, hide, '#storyComponents');
         } else {
             this.storyGrid.reconfigure(customStore);
             if (data.length === 0) {
@@ -308,7 +288,7 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
         }
     },
 
-    _onDefectsDataReady: function (data, dataLength){
+    _buildDefects: function (data, dataLength){
         var hide = false, defectTitle;
         if (data.length === 0) {
             defectTitle = 'No Defects In Iteration';
@@ -323,7 +303,7 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
 
 
         if (!this.defectGrid) {
-            this.defectGrid = this._createCustomGrid(customStore, hide, '#defectComps');
+            this.defectGrid = this._createCustomGrid(customStore, hide, '#defectComponents');
         } else {
             this.defectGrid.reconfigure(customStore);
             if (data.length === 0) {
@@ -334,7 +314,20 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
         }
     },
 
-    _onTasksDataReady: function(data, dataLength) {
+    // build tasks array
+    _onTasksStoreLoaded: function (store, data) {
+        var records = Ext.Array.map(data, function (task) {
+            return {
+                Name: '<a href="' + Rally.nav.Manager.getDetailUrl(task.get('_ref')) + 
+                    '" target="_top">' + task.get('FormattedID') + ' ' + task.get('Name') + '</a>',
+                Status: task.get('State'),
+                UserName: this._ownerIfKnown(task.get('Owner'))
+            };
+        }, this);
+        this._buildTasks(records, data.length);
+    },
+
+    _buildTasks: function(data, dataLength) {
         var hide = false, taskTitle;
         if (dataLength === 0) {
             taskTitle = 'No Tasks In Iteration';
@@ -348,7 +341,7 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
         var customStore = this._createCustomStore(data, hide);
 
         if (!this.taskGrid) {
-            this.taskGrid = this._createCustomGrid(customStore, hide, '#taskComps');
+            this.taskGrid = this._createCustomGrid(customStore, hide, '#taskComponents');
         } else {
             this.taskGrid.reconfigure(customStore);
             if (data.length === 0) {
@@ -357,15 +350,6 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
                 this.taskGrid.setVisible(true);
             }
         }
-    },
-
-    _createCustomField: function(container, title) {
-        field = this.down(container).add({
-            xtype: 'displayfield',
-            value: '<p style="font-size:13px">' + title + '</p><br />',
-            componentCls: 'gridTitle'
-        });
-        return field;
     },
 
     _createCustomGrid: function(store, hide, container) {
@@ -403,6 +387,18 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
         return store;
     },
 
+    _ownerIfKnown: function (artifact) {
+        var name = 'unknown';
+        if (artifact._refObjectName && artifact.DisplayName) {
+            name = artifact.DisplayName;
+        } else if (artifact._refObjectName && artifact.UserName) {
+            name = artifact.UserName;
+        } else if (artifact._refObjectName) {
+            name = artifact._refObjectName;
+        }
+        return name;
+    },
+
     getOptions: function() {
         return [
             {
@@ -414,15 +410,12 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
     },
 
     _onButtonPressed: function() {
-        var title = this.getContext().getTimeboxScope().getRecord().get('Name'), 
-            options;
+        var title = this.getContext().getTimeboxScope().getRecord().get('Name');
 
         // code to get the style that we added in the app.css file
         var css = document.getElementsByTagName('style')[0].innerHTML;
 
-
-        
-        options = "toolbar=1,menubar=1,scrollbars=yes,scrolling=yes,resizable=yes,width=1000,height=500";
+        var options = "toolbar=1,menubar=1,scrollbars=yes,scrolling=yes,resizable=yes,width=1000,height=500";
 
         var printWindow;
         if (Ext.isIE) {
@@ -435,23 +428,29 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
 
 
         var username = this.down('#userNameHeader');
-        var stories = this.down('#storyComps');
-        var defects = this.down('#defectComps');
-        var tasks = this.down('#taskComps');
+        var stories = this.down('#storyComponents');
+        var defects = this.down('#defectComponents');
+        var tasks = this.down('#taskComponents');
 
         doc.write('<html><head>' + '<style>' + css + '</style><title>' + title + '</title>');
 
 
         doc.write('</head><body class="landscape">');
         doc.write('<p style="font-family:Arial,Helvetica,sans-serif;margin:5px">Iteration: ' + title + '</p><br />');  
-        doc.write(username.getEl().dom.innerHTML + stories.getEl().dom.innerHTML + 
-            defects.getEl().dom.innerHTML + tasks.getEl().dom.innerHTML);
+        doc.write(username.getEl().dom.innerHTML + '<br />' + stories.getEl().dom.innerHTML + '<br />' +
+            defects.getEl().dom.innerHTML + '<br />' + tasks.getEl().dom.innerHTML);
         doc.write('</body></html>');
         doc.close();
 
         this._injectCSS(printWindow);
 
-        printWindow.print();
+        if (Ext.isSafari) {
+            var timeout = setTimeout(function() {
+                printWindow.print();
+            }, 500);
+        } else {
+            printWindow.print();
+        }
 
     },
 
