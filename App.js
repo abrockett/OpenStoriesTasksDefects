@@ -1,4 +1,4 @@
-Ext.define('Rally.apps.openstoriestasksdefects.App', {
+Ext.define('Rally.apps.openstoriesdefectsandtasks.App', {
     extend: 'Rally.app.TimeboxScopedApp',
     componentCls: 'app',
     scopeType: 'iteration',
@@ -68,7 +68,7 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
         Ext.create('Rally.data.WsapiDataStore', {
             model: 'UserStory',
             autoLoad: true,
-            fetch: ['ObjectID', 'FormattedID', 'Name', 'ScheduleState', 'State', 'Owner', 'UserName', 'DisplayName', 'Tasks', 'Defects', 'TestCases', 'LastVerdict'],
+            fetch: ['FormattedID', 'Name', 'ScheduleState', 'Owner', 'UserName', 'DisplayName', 'Tasks'],
             filters: [
                 this.getContext().getTimeboxScope().getQueryFilter(),
                 {
@@ -94,7 +94,7 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
         Ext.create('Rally.data.WsapiDataStore', {
             model: 'Defect',
             autoLoad: true,
-            fetch: ['ObjectID', 'FormattedID', 'Name', 'Owner', 'UserName', 'DisplayName', 'ScheduleState', 'Tasks', 'State'],
+            fetch: ['FormattedID', 'Name', 'Owner', 'UserName', 'DisplayName', 'ScheduleState', 'Tasks'],
             filters: [
                 this.getContext().getTimeboxScope().getQueryFilter(),
                 {
@@ -120,7 +120,7 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
         Ext.create('Rally.data.WsapiDataStore', {
             model: 'Task',
             autoLoad: true,
-            fetch: ['ObjectID', 'FormattedID', 'Name', 'Owner', 'UserName', 'DisplayName', 'State'],
+            fetch: ['FormattedID', 'Name', 'Owner', 'UserName', 'DisplayName', 'State'],
             filters: [
                 this.getContext().getTimeboxScope().getQueryFilter(),
                 {
@@ -138,7 +138,7 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
                 direction: 'ASC'
             }],
             listeners: {
-                load: this._onTasksStoreLoaded,
+                load: this._buildTasks,
                 scope: this
             }
         });
@@ -156,9 +156,11 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
         Ext.Array.each(data, function (story, index) {
             this._storyRecords.push({
                 FormattedID: story.get('FormattedID'),
-                Name: '<div class="parent"><a href="' + Rally.nav.Manager.getDetailUrl(story.get('_ref')) + '" target="_top">' + story.get('FormattedID') + ' ' + story.get('Name') + '</a></div>',
-                Status: '<div class="parent">' + story.get('ScheduleState') + '</div>',
-                UserName: '<div class="parent">' + this._ownerIfKnown(story.get('Owner')) + '</div>'
+                _ref: story.get('_ref'),
+                Name: story.get('Name'),
+                State: story.get('ScheduleState'),
+                Owner: story.get('Owner'),
+                Class: 'parent'
             });
             story.getCollection('Tasks').load({
                 fetch: ['FormattedID', 'Name', 'State', 'Owner', 'UserName', 'DisplayName'],
@@ -187,10 +189,11 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
         Ext.Array.each(data, function (defect, index) {
             this._defectRecords.push({
                 FormattedID: defect.get('FormattedID'),
-                Name: '<div class="parent"><a href="' + Rally.nav.Manager.getDetailUrl(defect.get('_ref')) + 
-                    '" target="_top">' + defect.get('FormattedID') + ' ' + defect.get('Name') + '</a></div>',
-                Status: '<div class="parent">' + defect.get('ScheduleState') + '</div>',
-                UserName: '<div class="parent">' + this._ownerIfKnown(defect.get('Owner')) + '</div>'
+                _ref: defect.get('_ref'),
+                Name: defect.get('Name'),
+                State: defect.get('ScheduleState'),
+                Owner: defect.get('Owner'),
+                Class: 'parent'
             });
             defect.getCollection('Tasks').load({
                 fetch: ['FormattedID', 'Name', 'State', 'Owner', 'UserName', 'DisplayName'],
@@ -213,11 +216,12 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
             if (tasks[i].get('State') !== 'Completed'){
                 taskList.push({
                     matchedFormattedID: element.get('FormattedID'),
-                    Name: '<div class="child"><a href="' + Rally.nav.Manager.getDetailUrl(tasks[i].raw._ref) + 
-                        '" target="_top">' + tasks[i].raw.FormattedID + ' ' + tasks[i].raw.Name + '</a></div>',
-                    Status: tasks[i].raw.State,
-                    UserName: this._ownerIfKnown(tasks[i].raw.Owner),
-                    FormattedID: tasks[i].get('FormattedID')
+                    _ref: tasks[i].get('_ref'),
+                    Name: tasks[i].get('Name'),
+                    State: tasks[i].get('State'),
+                    Owner: tasks[i].get('Owner'),
+                    FormattedID: tasks[i].get('FormattedID'),
+                    Class: 'child'
                 });
             }
         }
@@ -314,26 +318,13 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
         }
     },
 
-    // build tasks array
-    _onTasksStoreLoaded: function (store, data) {
-        var records = Ext.Array.map(data, function (task) {
-            return {
-                Name: '<a href="' + Rally.nav.Manager.getDetailUrl(task.get('_ref')) + 
-                    '" target="_top">' + task.get('FormattedID') + ' ' + task.get('Name') + '</a>',
-                Status: task.get('State'),
-                UserName: this._ownerIfKnown(task.get('Owner'))
-            };
-        }, this);
-        this._buildTasks(records, data.length);
-    },
-
-    _buildTasks: function(data, dataLength) {
+    _buildTasks: function(store, data) {
         var hide = false, taskTitle;
-        if (dataLength === 0) {
+        if (data.length === 0) {
             taskTitle = 'No Tasks In Iteration';
             hide = true;
         } else {
-            taskTitle = 'Tasks: ' + dataLength;
+            taskTitle = 'Tasks: ' + data.length;
         }
 
         this.down('#task-title').update(taskTitle);
@@ -353,29 +344,40 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
     },
 
     _createCustomGrid: function(store, hide, container) {
+        var me = this;
         grid = this.down(container).add({
             xtype: 'rallygrid',
             store: store,
             hidden: hide,
             sortableColumns: false,
-            columnCfgs: [{
-                text: 'Task',
-                dataIndex: 'Name',
-                cls: 'columnHeader',
-                flex: 4
-            }, {
-                text: 'Status',
-                dataIndex: 'Status',
-                cls: 'columnHeader',
-                flex: 1
-            }, {
-                text: 'Owner',
-                dataIndex: 'UserName',
-                cls: 'columnHeader',
-                flex: 1
-            }]
+            columnCfgs: [
+                {text: 'Artifact', flex: 4, renderer: this._artifactRenderer},
+                {text: 'Status', flex: 1, renderer: this._statusRenderer},
+                {text: 'Owner', flex: 1, renderer: function(value, metaData, record) {
+                    return me._ownerRenderer(record);
+                }}
+            ]
         });
         return grid;
+    },
+
+    _artifactRenderer: function(value, metaData, record) {
+        return '<div class="' + record.get('Class') + '"><a href="' + Rally.nav.Manager.getDetailUrl(record.get('_ref')) + 
+            '" target="_top">' + record.get('FormattedID') + ' ' + record.get('Name') + '</a></div>';
+    },
+
+    _statusRenderer: function(value, metaData, record) {
+        if (record.get('Class') === 'parent') {
+            return '<div class="parent">' + record.get('State') + '</div>';
+        }
+        return record.get('State');
+    },
+
+    _ownerRenderer: function(record) {
+        if (record.get('Class') === 'parent') {
+            return '<div class="parent">' + this._ownerIfKnown(record.get('Owner')) + '</div>';
+        }
+        return this._ownerIfKnown(record.get('Owner'));
     },
 
     _createCustomStore: function(data, hide) {
@@ -389,12 +391,14 @@ Ext.define('Rally.apps.openstoriestasksdefects.App', {
 
     _ownerIfKnown: function (artifact) {
         var name = 'unknown';
-        if (artifact._refObjectName && artifact.DisplayName) {
-            name = artifact.DisplayName;
-        } else if (artifact._refObjectName && artifact.UserName) {
-            name = artifact.UserName;
-        } else if (artifact._refObjectName) {
-            name = artifact._refObjectName;
+        if (artifact !== null && artifact) {
+            if (artifact.DisplayName) {
+                name = artifact.DisplayName;
+            } else if (artifact.UserName) {
+                name = artifact.UserName;
+            } else if (artifact._refObjectName) {
+                name = artifact._refObjectName;
+            }
         }
         return name;
     },
