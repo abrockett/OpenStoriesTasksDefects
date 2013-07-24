@@ -389,18 +389,8 @@ Ext.define('Rally.apps.openstoriesdefectsandtasks.App', {
         return store;
     },
 
-    _ownerIfKnown: function (artifact) {
-        var name = 'unknown';
-        if (artifact !== null && artifact) {
-            if (artifact.DisplayName) {
-                name = artifact.DisplayName;
-            } else if (artifact.UserName) {
-                name = artifact.UserName;
-            } else if (artifact._refObjectName) {
-                name = artifact._refObjectName;
-            }
-        }
-        return name;
+    _ownerIfKnown: function (owner) {
+        return (owner && owner._refObjectName) || 'unknown';
     },
 
     getOptions: function() {
