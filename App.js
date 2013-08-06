@@ -56,6 +56,7 @@ Ext.define('Rally.apps.openstoriesdefectsandtasks.App', {
     },
 
     onScopeChange: function() {
+        this._myMask.show();
         this._query();
     },
 
@@ -142,6 +143,7 @@ Ext.define('Rally.apps.openstoriesdefectsandtasks.App', {
                 scope: this
             }
         });
+
     },
 
     // creaty custom story records and get collection of tasks for each story
@@ -358,6 +360,7 @@ Ext.define('Rally.apps.openstoriesdefectsandtasks.App', {
                 }}
             ]
         });
+
         return grid;
     },
 
